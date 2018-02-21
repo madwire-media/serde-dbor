@@ -15,19 +15,38 @@ use super::WRONG_ENDIANNESS;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
-// TODO put Type into error for expecting
-#[allow(dead_code)] // Most types are never 'constructed', but they are through transmute
+#[allow(dead_code)] // Most types are never constructed directly, instead through transmutation
+/// All storage types, including ones that exist solely for debugging purposes
 pub enum Type {
+    /// Represents a `u8`, `u16`, `u32`, or `u64`
     Uint,
+
+    /// Represents an `i8`, `i16`, `i32`, or `i64`
     Int,
+
+    /// Represents a `bool`, `()`, `None`, `f32`, or `f64`
     Misc,
+
+    /// Represents a variant of an enum
     Variant,
+
+    /// Represents an array, tuple, or struct
     Seq,
+
+    /// Represents a string or array of bytes
     Bytes,
+
+    /// Represents a map type
     Map,
+
+    /// Reserved for later use
     Reserved,
-    Any, // Should never be constructed except for for error debugging
-    Char, // Should never be constructed except for for error debugging
+
+    /// Used only in error messages, represents any type
+    Any, // Should never be constructed except for error messages
+
+    /// Used only in error messages, represents a `char`
+    Char, // Should never be constructed except for error messages
 }
 
 #[inline]
@@ -42,6 +61,7 @@ fn val(byte: u8) -> u8 {
 }
 
 
+/// Deserialize an instance of type T from an IO stream of DBOR
 pub fn from_reader<'de, R: IoRead + 'de, T>(r: R) -> Result<T>
 where
     T: Deserialize<'de>
@@ -56,6 +76,7 @@ where
     }
 }
 
+/// Deserialize an instance of type T from bytes of DBOR
 pub fn from_slice<'de, S: AsRef<[u8]> + 'de, T>(bytes: &'de S) -> Result<T>
 where
     T: Deserialize<'de>
@@ -71,12 +92,14 @@ where
 }
 
 
+/// A structure that deserializes DBOR into Rust values
 pub struct Deserializer<'de, R: Read<'de> + 'de> {
     input: R,
     phantom: PhantomData<&'de ()>,
 }
 
 impl<'de> Deserializer<'de, SliceReader<'de>> {
+    /// Creates a DBOR deserializer from something that converts into a `&[u8]`
     pub fn from_slice<S: AsRef<[u8]> + 'de>(bytes: &'de S) -> Self {
         Self {
             input: SliceReader::new(bytes),
@@ -86,6 +109,7 @@ impl<'de> Deserializer<'de, SliceReader<'de>> {
 }
 
 impl<'de, R: IoRead> Deserializer<'de, BufferedReader<R>> {
+    /// Creates a DBOR deserializer from an `io::Read`
     pub fn from_reader(reader: R) -> Self {
         Self {
             input: BufferedReader::new(reader),

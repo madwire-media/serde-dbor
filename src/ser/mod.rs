@@ -20,10 +20,12 @@ const TYPE_MAP: u8 = 0b11000000;
 const VALUE_MASK: u8 = 0b00011111;
 
 
+/// A structure for serializing Rust values into DBOR
 pub struct Serializer<W: Write> {
     output: W,
 }
 
+/// Serialize the given data structure as a DBOR byte vector
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize
@@ -35,6 +37,7 @@ where
     serializer.output.finish()
 }
 
+/// Serialize the given data structure as DBOR into an IO stream
 pub fn to_writer<T, W>(value: &T, writer: W) -> Result<W>
 where
     T: Serialize,
@@ -330,7 +333,7 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
                 )?;
             }
             #[cfg(not(target_pointer_width = "64"))]
-            _ => Err(Error::TODO), // Too many bytes to load for this current machine
+            _ => Err(Error::UsizeOverflow), // Too many bytes to load for this current machine
         }
 
         self.put_bytes(v, false)
@@ -443,9 +446,9 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
                     )?;
                 }
                 #[cfg(not(target_pointer_width = "64"))]
-                _ => Err(Error::TODO), // Too many bytes to load for this current machine
+                _ => Err(Error::UsizeOverflow), // Too many bytes to load for this current machine
             }
-            None => return Err(Error::TODO), // Must know the size of an array ahead of time
+            None => return Err(Error::MustKnowItemSize), // Must know the size of an array ahead of time
         }
 
         Ok(self)
@@ -522,7 +525,7 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
                 )?;
             }
             #[cfg(not(target_pointer_width = "64"))]
-            _ => Err(Error::TODO), // Too many bytes to load for this current machine
+            _ => Err(Error::UsizeOverflow), // Too many bytes to load for this current machine
         }
 
         Ok(self)
@@ -563,9 +566,9 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
                     )?;
                 }
                 #[cfg(not(target_pointer_width = "64"))]
-                _ => Err(Error::TODO), // Too many bytes to load for this current machine
+                _ => Err(Error::UsizeOverflow), // Too many bytes to load for this current machine
             }
-            None => return Err(Error::TODO), // Must know the size of an array ahead of time
+            None => return Err(Error::MustKnowItemSize), // Must know the size of an array ahead of time
         }
 
         Ok(self)
@@ -637,7 +640,7 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
                 )?;
             }
             #[cfg(not(target_pointer_width = "64"))]
-            _ => Err(Error::TODO), // Too many bytes to load for this current machine
+            _ => Err(Error::UsizeOverflow), // Too many bytes to load for this current machine
         }
 
         Ok(self)
