@@ -16,120 +16,120 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
     <th>Parameter Descriptions</th>
   </tr>
   <tr>
-    <td>`0b000` (`0`)</td>
+    <td><code>0b000</code> (<code>0</code>)</td>
     <td>uint</td>
     <td>
       <ul>
-        <li>`0-23` - values `0-23`</li>
-        <li>`24` - `u8`</li>
-        <li>`25` - `u16`</li>
-        <li>`26` - `u32`</li>
-        <li>`27` - `u64`</li>
-        <li>`28-31` - *reserved*</li>
+        <li><code>0-23</code> - values <code>0-23</code></li>
+        <li><code>24</code> - <code>u8</code></li>
+        <li><code>25</code> - <code>u16</code></li>
+        <li><code>26</code> - <code>u32</code></li>
+        <li><code>27</code> - <code>u64</code></li>
+        <li><code>28-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b001` (`1`)</td>
+    <td><code>0b001</code> (<code>1</code>)</td>
     <td>int</td>
     <td>
       <ul>
-        <li>`0-15` - values `0-15`</li>
-        <li>`16-23` - values `-8--1`</li>
-        <li>`24` - `i8`</li>
-        <li>`25` - `i16`</li>
-        <li>`26` - `i32`</li>
-        <li>`27` - `i64`</li>
-        <li>`28-31` - *reserved*</li>
+        <li><code>0-15</code> - values <code>0-15</code></li>
+        <li><code>16-23</code> - values <code>-8--1</code></li>
+        <li><code>24</code> - <code>i8</code></li>
+        <li><code>25</code> - <code>i16</code></li>
+        <li><code>26</code> - <code>i32</code></li>
+        <li><code>27</code> - <code>i64</code></li>
+        <li><code>28-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b010` (`2`)</td>
+    <td><code>0b010</code> (<code>2</code>)</td>
     <td>misc</td>
     <td>
       <ul>
-        <li>`0` - `false`</li>
-        <li>`1` - `true`</li>
-        <li>`2` - `()`</li>
-        <li>`3` - `None`</li>
-        <li>`4` - `f32`</li>
-        <li>`5` - `f64`</li>
-        <li>`6-31` - *reserved*</li>
+        <li><code>0</code> - <code>false</code></li>
+        <li><code>1</code> - <code>true</code></li>
+        <li><code>2</code> - <code>()</code></li>
+        <li><code>3</code> - <code>None</code></li>
+        <li><code>4</code> - <code>f32</code></li>
+        <li><code>5</code> - <code>f64</code></li>
+        <li><code>6-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b011` (`3`)</td>
+    <td><code>0b011</code> (<code>3</code>)</td>
     <td>variant (enum)</td>
     <td>
       <ul>
-        <li>`0-23` - variant ids `0-23`</li>
-        <li>`24` - variant id as `u8`</li>
-        <li>`25` - variant id as `u16`</li>
-        <li>`26` - variant id as `u32`</li>
-        <li>`27` - named variant (see below)</li>
-        <li>`28-31` - *reserved*</li>
+        <li><code>0-23</code> - variant ids <code>0-23</code></li>
+        <li><code>24</code> - variant id as <code>u8</code></li>
+        <li><code>25</code> - variant id as <code>u16</code></li>
+        <li><code>26</code> - variant id as <code>u32</code></li>
+        <li><code>27</code> - named variant (see below)</li>
+        <li><code>28-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b100` (`4`)</td>
+    <td><code>0b100</code> (<code>4</code>)</td>
     <td>seq (array/tuple/struct)</td>
     <td>
       <ul>
-        <li>`0-23` - length of `0-23`</li>
-        <li>`24` - length as `u8`</li>
-        <li>`25` - length as `u16`</li>
-        <li>`26` - length as `u32`</li>
-        <li>`27` - length as `u64` (only on 64-bit machines)</li>
-        <li>`28-31` - *reserved*</li>
+        <li><code>0-23</code> - length of <code>0-23</code></li>
+        <li><code>24</code> - length as <code>u8</code></li>
+        <li><code>25</code> - length as <code>u16</code></li>
+        <li><code>26</code> - length as <code>u32</code></li>
+        <li><code>27</code> - length as <code>u64</code> (only on 64-bit machines)</li>
+        <li><code>28-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b101` (`5`)</td>
+    <td><code>0b101</code> (<code>5</code>)</td>
     <td>bytes (string/byte array)</td>
     <td>
       <ul>
-        <li>`0-23` - length of `0-23`</li>
-        <li>`24` - length as `u8`</li>
-        <li>`25` - length as `u16`</li>
-        <li>`26` - length as `u32`</li>
-        <li>`27` - length as `u64` (only on 64-bit machines)</li>
-        <li>`28-31` - *reserved*</li>
+        <li><code>0-23</code> - length of <code>0-23</code></li>
+        <li><code>24</code> - length as <code>u8</code></li>
+        <li><code>25</code> - length as <code>u16</code></li>
+        <li><code>26</code> - length as <code>u32</code></li>
+        <li><code>27</code> - length as <code>u64</code> (only on 64-bit machines)</li>
+        <li><code>28-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b110` (`6`)</td>
+    <td><code>0b110</code> (<code>6</code>)</td>
     <td>map</td>
     <td>
       <ul>
-        <li>`0-23` - length of `0-23`</li>
-        <li>`24` - length as `u8`</li>
-        <li>`25` - length as `u16`</li>
-        <li>`26` - length as `u32`</li>
-        <li>`27` - length as `u64` (only on 64-bit machines)</li>
-        <li>`28-31`</li>
+        <li><code>0-23</code> - length of <code>0-23</code></li>
+        <li><code>24</code> - length as <code>u8</code></li>
+        <li><code>25</code> - length as <code>u16</code></li>
+        <li><code>26</code> - length as <code>u32</code></li>
+        <li><code>27</code> - length as <code>u64</code> (only on 64-bit machines)</li>
+        <li><code>28-31</code></li>
       </ul>
     </td>
   </tr>
   <tr>
-    <td>`0b111` (`7`)</td>
+    <td><code>0b111</code> (<code>7</code>)</td>
     <td>*reserved*</td>
     <td>
       <ul>
-        <li>`0-31` - *reserved*</li>
+        <li><code>0-31</code> - *reserved*</li>
       </ul>
     </td>
   </tr>
 </table>
 
 #### Named Variant Byte
-* `0-247` - name length of `0-247`
-* `248` - name length as `u8`
-* `249` - name length as `u16`
-* `250` - name length as `u32`
-* `251` - name length as `u64` (only on 64-bit machines)
-* `252-255` - *reserved*
+* <code>0-247</code> - name length of <code>0-247</code>
+* <code>248</code> - name length as <code>u8</code>
+* <code>249</code> - name length as <code>u16</code>
+* <code>250</code> - name length as <code>u32</code>
+* <code>251</code> - name length as <code>u64</code> (only on 64-bit machines)
+* <code>252-255</code> - *reserved*
