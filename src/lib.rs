@@ -21,6 +21,6 @@ lazy_static! {
 
         // Although sacrificing readability, x86 uses Little Endian, so it's faster to avoid
         //   flipping endianness all of the time
-        first_byte != 0xff
+        first_byte == 0xff
     };
 }

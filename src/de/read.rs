@@ -5,14 +5,16 @@ use std::cmp;
 pub enum Borrowed<'a, 'de: 'a> {
     Transient(&'a [u8]),
     Permanent(&'de [u8]),
+    Copied(Vec<u8>),
 }
 
 impl<'a, 'de> Borrowed<'a, 'de> {
     #[inline]
-    pub fn as_slice(&self) -> &'a [u8] {
+    pub fn as_slice(&'a self) -> &'a [u8] {
         match self {
             &Borrowed::Transient(slice) => slice,
             &Borrowed::Permanent(slice) => slice,
+            &Borrowed::Copied(ref vec) => vec.as_slice(),
         }
     }
 
@@ -21,6 +23,7 @@ impl<'a, 'de> Borrowed<'a, 'de> {
         match self {
             &Borrowed::Transient(slice) => Vec::from(slice),
             &Borrowed::Permanent(slice) => Vec::from(slice),
+            &Borrowed::Copied(ref vec) => vec.clone(),
         }
     }
 
@@ -29,6 +32,7 @@ impl<'a, 'de> Borrowed<'a, 'de> {
         match self {
             &Borrowed::Transient(slice) => slice.len(),
             &Borrowed::Permanent(slice) => slice.len(),
+            &Borrowed::Copied(ref vec) => vec.len(),
         }
     }
 }
@@ -37,8 +41,10 @@ impl<'a, 'de> Borrowed<'a, 'de> {
 pub trait Read<'de> {
     fn next(&mut self) -> Option<u8>;
     fn peek_next(&mut self) -> Option<u8>;
-    fn read<'a>(&'a mut self, bytes: usize/*, flipped: bool*/) -> Option<Borrowed<'a, 'de>>;
-    fn peek<'a>(&'a mut self, bytes: usize/*, flipped: bool*/) -> Option<Borrowed<'a, 'de>>;
+    fn read<'a>(&'a mut self, bytes: usize, flipped: bool) -> Option<Borrowed<'a, 'de>>;
+    // For now flipping on peek isn't allowed, because if it was we'd have to copy the bytes
+    //   and handle another variant of Borrowed which owns the flipped content
+    fn peek<'a>(&'a mut self, bytes: usize) -> Option<Borrowed<'a, 'de>>;
     fn consume(&mut self, bytes: usize) -> Option<usize>;
     fn max_instant_read(&self) -> usize;
     fn finished(&mut self) -> bool;
@@ -133,7 +139,7 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
         }
     }
 
-    fn read<'a>(&'a mut self, bytes: usize) -> Option<Borrowed<'a, 'de>> {
+    fn read<'a>(&'a mut self, bytes: usize, flipped: bool) -> Option<Borrowed<'a, 'de>> {
         if bytes > MAX_BUF_LEN {
             panic!("Cannot read more than {} bytes from buffer", MAX_BUF_LEN);
         } else if self.finished {
@@ -142,11 +148,17 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
                 None
             } else {
                 // Return as many bytes as we can
-                let consumed = &self.buffer[
+                let consumed = &mut self.buffer[
                     self.index..cmp::min(self.index + bytes, self.buf_len)
                 ];
 
                 self.index = cmp::min(self.index + bytes, self.buf_len);
+
+                // We are never going to read these bytes again, so we might as well flip them in
+                //   place
+                if flipped {
+                    consumed.reverse();
+                }
 
                 Some(Borrowed::Transient(consumed))
             }
@@ -175,14 +187,29 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
                                 self.index = self.buf_len;
 
                                 // Return as many bytes as we have left
-                                break Some(Borrowed::Transient(&self.buffer[..self.buf_len]));
+                                let consumed = &mut self.buffer[..self.buf_len];
+
+                                // We are never going to read these bytes again, so we might as
+                                //   well flip them in place
+                                if flipped {
+                                    consumed.reverse();
+                                }
+
+                                break Some(Borrowed::Transient(consumed));
                             } else {
                                 self.buf_len += bytes_read;
                                 self.index = cmp::min(bytes, self.buf_len);
 
                                 // Return as many bytes as we can
-                                break Some(Borrowed::Transient(
-                                    &self.buffer[..cmp::min(bytes, self.buf_len)]));
+                                let consumed = &mut self.buffer[..cmp::min(bytes, self.buf_len)];
+
+                                // We are never going to read these bytes again, so we might as
+                                //   well flip them in place
+                                if flipped {
+                                    consumed.reverse();
+                                }
+
+                                break Some(Borrowed::Transient(consumed));
                             }
                         }
                         Err(ref error) if error.kind() == IoErrorKind::Interrupted => {}
@@ -191,7 +218,15 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
                             self.index = self.buf_len;
 
                             // Return as many bytes as we have left
-                            break Some(Borrowed::Transient(&self.buffer[..self.buf_len]));
+                            let consumed = &mut self.buffer[..self.buf_len];
+
+                            // We are never going to read these bytes again, so we might as well
+                            //   flip them in place
+                            if flipped {
+                                consumed.reverse();
+                            }
+
+                            break Some(Borrowed::Transient(consumed));
                         }
                     }
                 }
@@ -199,7 +234,15 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
                 let orig_index = self.index;
                 self.index = cmp::min(self.index + bytes, self.buf_len);
 
-                Some(Borrowed::Transient(&self.buffer[orig_index..self.index]))
+                let consumed = &mut self.buffer[orig_index..self.index];
+
+                // We are never going to read these bytes again, so we might as well flip them in
+                //   place
+                if flipped {
+                    consumed.reverse();
+                }
+
+                Some(Borrowed::Transient(consumed))
             }
         }
     }
@@ -382,7 +425,7 @@ impl<'de> Read<'de> for SliceReader<'de> {
         }
     }
 
-    fn read<'a>(&'a mut self, bytes: usize) -> Option<Borrowed<'a, 'de>> {
+    fn read<'a>(&'a mut self, bytes: usize, flipped: bool) -> Option<Borrowed<'a, 'de>> {
         if self.index >= self.internal.len() {
             None
         } else {
@@ -391,7 +434,15 @@ impl<'de> Read<'de> for SliceReader<'de> {
 
             self.index = new_index;
 
-            Some(Borrowed::Permanent(consumed))
+            if flipped {
+                let mut consumed = consumed.to_vec();
+
+                consumed.reverse();
+
+                Some(Borrowed::Copied(consumed))
+            } else {
+                Some(Borrowed::Permanent(consumed))
+            }
         }
     }
 

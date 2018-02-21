@@ -47,6 +47,18 @@ where
     serializer.output.finish()
 }
 
+impl<W: Write> Serializer<W> {
+    #[inline]
+    fn put_byte(&mut self, byte: u8) -> Result<()> {
+        self.output.put_byte(byte)
+    }
+
+    #[inline]
+    fn put_bytes(&mut self, bytes: &[u8], should_flip: bool) -> Result<()> {
+        self.output.put_bytes(bytes, *WRONG_ENDIANNESS && should_flip)
+    }
+}
+
 impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
@@ -61,17 +73,19 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.output.put_byte(TYPE_MISC | (v as u8))
+        self.put_byte(TYPE_MISC | (v as u8))
     }
 
     #[inline]
     fn serialize_i8(self, mut v: i8) -> Result<()> {
         match v {
-            0...15 => self.output.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
-            -8...-1 => self.output.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
+            0...15 => self.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
+            -8...-1 => self.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
             -0x80...-8 | 16...0x7f | _ => {
-                self.output.put_byte(TYPE_INT | 24)?;
-                self.output.put_byte(unsafe { *(&mut v as *mut i8 as *mut u8) })
+                self.put_byte(TYPE_INT | 24)?;
+                self.put_byte(
+                    unsafe { *(&mut v as *mut i8 as *mut u8) }
+                )
             }
         }
     }
@@ -79,17 +93,19 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     // #[inline]
     fn serialize_i16(self, mut v: i16) -> Result<()> {
         match v {
-            0...15 => self.output.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
-            -8...-1 => self.output.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
+            0...15 => self.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
+            -8...-1 => self.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
             -0x80...-8 | 16...0x7f => {
-                self.output.put_byte(TYPE_INT | 24)?;
-                self.output.put_byte(unsafe { *(&mut (v as i8) as *mut i8 as *mut u8) })
+                self.put_byte(TYPE_INT | 24)?;
+                self.put_byte(
+                    unsafe { *(&mut (v as i8) as *mut i8 as *mut u8) }
+                )
             }
             -0x8000...-0x81 | 0x80...0x7fff | _ => {
-                self.output.put_byte(TYPE_INT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_INT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut v as *mut i16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
         }
@@ -98,24 +114,26 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_i32(self, mut v: i32) -> Result<()> {
         match v {
-            0...15 => self.output.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
-            -8...-1 => self.output.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
+            0...15 => self.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
+            -8...-1 => self.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
             -0x80...-8 | 16...0x7f => {
-                self.output.put_byte(TYPE_INT | 24)?;
-                self.output.put_byte(unsafe { *(&mut (v as i8) as *mut i8 as *mut u8) })
+                self.put_byte(TYPE_INT | 24)?;
+                self.put_byte(
+                    unsafe { *(&mut (v as i8) as *mut i8 as *mut u8) }
+                )
             }
             -0x8000...-0x81 | 0x80...0x7fff => {
-                self.output.put_byte(TYPE_INT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_INT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (v as i16) as *mut i16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
             -0x80000000...-0x8001 | 0x8000...0x7fffffff | _ => {
-                self.output.put_byte(TYPE_INT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_INT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut v as *mut i32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
         }
@@ -124,31 +142,33 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     // #[inline]
     fn serialize_i64(self, mut v: i64) -> Result<()> {
         match v {
-            0...15 => self.output.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
-            -8...-1 => self.output.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
+            0...15 => self.put_byte(TYPE_INT | (v as u8 & VALUE_MASK)),
+            -8...-1 => self.put_byte(TYPE_INT | ((v + 24) as u8 & VALUE_MASK)),
             -0x80...-8 | 16...0x7f => {
-                self.output.put_byte(TYPE_INT | 24)?;
-                self.output.put_byte(unsafe { *(&mut (v as i8) as *mut i8 as *mut u8) })
+                self.put_byte(TYPE_INT | 24)?;
+                self.put_byte(
+                    unsafe { *(&mut (v as i8) as *mut i8 as *mut u8) }
+                )
             }
             -0x8000...-0x81 | 0x80...0x7fff => {
-                self.output.put_byte(TYPE_INT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_INT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (v as i16) as *mut i16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
             -0x80000000...-0x8001 | 0x8000...0x7fffffff => {
-                self.output.put_byte(TYPE_INT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_INT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (v as i32) as *mut i32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
             -0x8000000000000000...-0x80000001 | 0x80000000...0x7fffffffffffffff | _ => {
-                self.output.put_byte(TYPE_INT | 27)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_INT | 27)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut v as *mut i64 as *mut [u8; 8]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
         }
@@ -157,10 +177,10 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_u8(self, v: u8) -> Result<()> {
         match v {
-            0...23 => self.output.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
+            0...23 => self.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
             24...0xff | _ => {
-                self.output.put_byte(TYPE_UINT | 24)?;
-                self.output.put_byte(v)
+                self.put_byte(TYPE_UINT | 24)?;
+                self.put_byte(v)
             }
         }
     }
@@ -168,16 +188,16 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     #[inline]
     fn serialize_u16(self, mut v: u16) -> Result<()> {
         match v {
-            0...23 => self.output.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
+            0...23 => self.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
             24...0xff => {
-                self.output.put_byte(TYPE_UINT | 24)?;
-                self.output.put_byte(v as u8)
+                self.put_byte(TYPE_UINT | 24)?;
+                self.put_byte(v as u8)
             }
             0x100...0xffff | _ => {
-                self.output.put_byte(TYPE_UINT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_UINT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut v as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
         }
@@ -186,23 +206,23 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     // #[inline]
     fn serialize_u32(self, mut v: u32) -> Result<()> {
         match v {
-            0...23 => self.output.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
+            0...23 => self.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
             24...0xff => {
-                self.output.put_byte(TYPE_UINT | 24)?;
-                self.output.put_byte(v as u8)
+                self.put_byte(TYPE_UINT | 24)?;
+                self.put_byte(v as u8)
             }
             0x100...0xffff => {
-                self.output.put_byte(TYPE_UINT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_UINT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (v as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
             0x10000...0xffffffff | _ => {
-                self.output.put_byte(TYPE_UINT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_UINT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut v as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
         }
@@ -211,30 +231,30 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     // #[inline]
     fn serialize_u64(self, mut v: u64) -> Result<()> {
         match v {
-            0...23 => self.output.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
+            0...23 => self.put_byte(TYPE_UINT | (v as u8 & VALUE_MASK)),
             24...0xff => {
-                self.output.put_byte(TYPE_UINT | 24)?;
-                self.output.put_byte(v as u8)
+                self.put_byte(TYPE_UINT | 24)?;
+                self.put_byte(v as u8)
             }
             0x100...0xffff => {
-                self.output.put_byte(TYPE_UINT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_UINT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (v as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
             0x10000...0xffffffff => {
-                self.output.put_byte(TYPE_UINT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_UINT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (v as u32) as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
             0x100000000...0xffffffffffffffff | _ => {
-                self.output.put_byte(TYPE_UINT | 27)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_UINT | 27)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut v as *mut u64 as *mut [u8; 8]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )
             }
         }
@@ -242,19 +262,19 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
 
     #[inline]
     fn serialize_f32(self, mut v: f32) -> Result<()> {
-        self.output.put_byte(TYPE_MISC | 4)?;
-        self.output.put_bytes(
+        self.put_byte(TYPE_MISC | 4)?;
+        self.put_bytes(
             unsafe { &mut *(&mut v as *mut f32 as *mut [u8; 4]) },
-            *WRONG_ENDIANNESS
+            true
         )
     }
 
     #[inline]
     fn serialize_f64(self, mut v: f64) -> Result<()> {
-        self.output.put_byte(TYPE_MISC | 5)?;
-        self.output.put_bytes(
+        self.put_byte(TYPE_MISC | 5)?;
+        self.put_bytes(
             unsafe { &mut *(&mut v as *mut f64 as *mut [u8; 8]) },
-            *WRONG_ENDIANNESS
+            true
         )
     }
 
@@ -266,8 +286,8 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         //
         // let slice = v.encode_utf8(&mut buf).as_bytes();
         //
-        // self.output.put_byte(TYPE_BYTES | slice.len() as u8)?;
-        // self.output.put_bytes(slice, false)
+        // self.put_byte(TYPE_BYTES | slice.len() as u8)?;
+        // self.put_bytes(slice, false)
     }
 
     #[inline]
@@ -281,44 +301,44 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
 
         match len {
             0...23 => {
-                self.output.put_byte(TYPE_BYTES | len as u8)?;
+                self.put_byte(TYPE_BYTES | len as u8)?;
             }
             24...0xff => {
-                self.output.put_byte(TYPE_BYTES | 24)?;
-                self.output.put_byte(len as u8)?;
+                self.put_byte(TYPE_BYTES | 24)?;
+                self.put_byte(len as u8)?;
             }
             0x0100...0xffff => {
-                self.output.put_byte(TYPE_BYTES | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_BYTES | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             0x00010000...0xffffffff => {
-                self.output.put_byte(TYPE_BYTES | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_BYTES | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u32) as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             #[cfg(target_pointer_width = "64")]
             0x0000000100000000...0xffffffffffffffff | _ => {
-                self.output.put_byte(TYPE_BYTES | 27)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_BYTES | 27)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u64) as *mut u64 as *mut [u8; 8]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             #[cfg(not(target_pointer_width = "64"))]
             _ => Err(Error::TODO), // Too many bytes to load for this current machine
         }
 
-        self.output.put_bytes(v, false)
+        self.put_bytes(v, false)
     }
 
     #[inline]
     fn serialize_none(self) -> Result<()> {
-        self.output.put_byte(TYPE_MISC | 3)
+        self.put_byte(TYPE_MISC | 3)
     }
 
     #[inline]
@@ -331,7 +351,7 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
 
     #[inline]
     fn serialize_unit(self) -> Result<()> {
-        self.output.put_byte(TYPE_MISC | 2)
+        self.put_byte(TYPE_MISC | 2)
     }
 
     #[inline]
@@ -362,24 +382,24 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
     {
         match variant_index {
             0...23 => {
-                self.output.put_byte(TYPE_VARIANT | (variant_index as u8 & VALUE_MASK))?;
+                self.put_byte(TYPE_VARIANT | (variant_index as u8 & VALUE_MASK))?;
             }
             24...0xff => {
-                self.output.put_byte(TYPE_VARIANT | 24)?;
-                self.output.put_byte(variant_index as u8)?;
+                self.put_byte(TYPE_VARIANT | 24)?;
+                self.put_byte(variant_index as u8)?;
             }
             0x100...0xffff => {
-                self.output.put_byte(TYPE_VARIANT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_VARIANT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (variant_index as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             0x10000...0xffffffff | _ => {
-                self.output.put_byte(TYPE_VARIANT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_VARIANT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut variant_index as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
         }
@@ -394,32 +414,32 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         match len {
             Some(len) => match len {
                 0...23 => {
-                    self.output.put_byte(TYPE_SEQ | len as u8)?;
+                    self.put_byte(TYPE_SEQ | len as u8)?;
                 }
                 24...0xff => {
-                    self.output.put_byte(TYPE_SEQ | 24)?;
-                    self.output.put_byte(len as u8)?;
+                    self.put_byte(TYPE_SEQ | 24)?;
+                    self.put_byte(len as u8)?;
                 }
                 0x0100...0xffff => {
-                    self.output.put_byte(TYPE_SEQ | 25)?;
-                    self.output.put_bytes(
+                    self.put_byte(TYPE_SEQ | 25)?;
+                    self.put_bytes(
                         unsafe { &mut *(&mut (len as u16) as *mut u16 as *mut [u8; 2]) },
-                        *WRONG_ENDIANNESS
+                        true
                     )?;
                 }
                 0x00010000...0xffffffff => {
-                    self.output.put_byte(TYPE_SEQ | 26)?;
-                    self.output.put_bytes(
+                    self.put_byte(TYPE_SEQ | 26)?;
+                    self.put_bytes(
                         unsafe { &mut *(&mut (len as u32) as *mut u32 as *mut [u8; 4]) },
-                        *WRONG_ENDIANNESS
+                        true
                     )?;
                 }
                 #[cfg(target_pointer_width = "64")]
                 0x0000000100000000...0xffffffffffffffff | _ => {
-                    self.output.put_byte(TYPE_SEQ | 27)?;
-                    self.output.put_bytes(
+                    self.put_byte(TYPE_SEQ | 27)?;
+                    self.put_bytes(
                         unsafe { &mut *(&mut (len as u64) as *mut u64 as *mut [u8; 8]) },
-                        *WRONG_ENDIANNESS
+                        true
                     )?;
                 }
                 #[cfg(not(target_pointer_width = "64"))]
@@ -448,24 +468,24 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         // Start variant
         match variant_index {
             0...23 => {
-                self.output.put_byte(TYPE_VARIANT | (variant_index as u8 & VALUE_MASK))?;
+                self.put_byte(TYPE_VARIANT | (variant_index as u8 & VALUE_MASK))?;
             }
             24...0xff => {
-                self.output.put_byte(TYPE_VARIANT | 24)?;
-                self.output.put_byte(variant_index as u8)?;
+                self.put_byte(TYPE_VARIANT | 24)?;
+                self.put_byte(variant_index as u8)?;
             }
             0x100...0xffff => {
-                self.output.put_byte(TYPE_VARIANT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_VARIANT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (variant_index as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             0x10000...0xffffffff | _ => {
-                self.output.put_byte(TYPE_VARIANT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_VARIANT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut variant_index as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
         }
@@ -473,32 +493,32 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         // Start seq
         match len {
             0...23 => {
-                self.output.put_byte(TYPE_SEQ | len as u8)?;
+                self.put_byte(TYPE_SEQ | len as u8)?;
             }
             24...0xff => {
-                self.output.put_byte(TYPE_SEQ | 24)?;
-                self.output.put_byte(len as u8)?;
+                self.put_byte(TYPE_SEQ | 24)?;
+                self.put_byte(len as u8)?;
             }
             0x0100...0xffff => {
-                self.output.put_byte(TYPE_SEQ | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_SEQ | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             0x00010000...0xffffffff => {
-                self.output.put_byte(TYPE_SEQ | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_SEQ | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u32) as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             #[cfg(target_pointer_width = "64")]
             0x0000000100000000...0xffffffffffffffff | _ => {
-                self.output.put_byte(TYPE_SEQ | 27)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_SEQ | 27)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u64) as *mut u64 as *mut [u8; 8]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             #[cfg(not(target_pointer_width = "64"))]
@@ -514,32 +534,32 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         match len {
             Some(len) => match len {
                 0...23 => {
-                    self.output.put_byte(TYPE_MAP | len as u8)?;
+                    self.put_byte(TYPE_MAP | len as u8)?;
                 }
                 24...0xff => {
-                    self.output.put_byte(TYPE_MAP | 24)?;
-                    self.output.put_byte(len as u8)?;
+                    self.put_byte(TYPE_MAP | 24)?;
+                    self.put_byte(len as u8)?;
                 }
                 0x0100...0xffff => {
-                    self.output.put_byte(TYPE_MAP | 25)?;
-                    self.output.put_bytes(
+                    self.put_byte(TYPE_MAP | 25)?;
+                    self.put_bytes(
                         unsafe { &mut *(&mut (len as u16) as *mut u16 as *mut [u8; 2]) },
-                        *WRONG_ENDIANNESS
+                        true
                     )?;
                 }
                 0x00010000...0xffffffff => {
-                    self.output.put_byte(TYPE_MAP | 26)?;
-                    self.output.put_bytes(
+                    self.put_byte(TYPE_MAP | 26)?;
+                    self.put_bytes(
                         unsafe { &mut *(&mut (len as u32) as *mut u32 as *mut [u8; 4]) },
-                        *WRONG_ENDIANNESS
+                        true
                     )?;
                 }
                 #[cfg(target_pointer_width = "64")]
                 0x0000000100000000...0xffffffffffffffff | _ => {
-                    self.output.put_byte(TYPE_MAP | 27)?;
-                    self.output.put_bytes(
+                    self.put_byte(TYPE_MAP | 27)?;
+                    self.put_bytes(
                         unsafe { &mut *(&mut (len as u64) as *mut u64 as *mut [u8; 8]) },
-                        *WRONG_ENDIANNESS
+                        true
                     )?;
                 }
                 #[cfg(not(target_pointer_width = "64"))]
@@ -563,24 +583,24 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         // Start variant
         match variant_index {
             0...23 => {
-                self.output.put_byte(TYPE_VARIANT | (variant_index as u8 & VALUE_MASK))?;
+                self.put_byte(TYPE_VARIANT | (variant_index as u8 & VALUE_MASK))?;
             }
             24...0xff => {
-                self.output.put_byte(TYPE_VARIANT | 24)?;
-                self.output.put_byte(variant_index as u8)?;
+                self.put_byte(TYPE_VARIANT | 24)?;
+                self.put_byte(variant_index as u8)?;
             }
             0x100...0xffff => {
-                self.output.put_byte(TYPE_VARIANT | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_VARIANT | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (variant_index as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             0x10000...0xffffffff | _ => {
-                self.output.put_byte(TYPE_VARIANT | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_VARIANT | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut variant_index as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
         }
@@ -588,32 +608,32 @@ impl<'a, W: Write> SerdeSerializer for &'a mut Serializer<W> {
         // Start seq
         match len {
             0...23 => {
-                self.output.put_byte(TYPE_SEQ | len as u8)?;
+                self.put_byte(TYPE_SEQ | len as u8)?;
             }
             24...0xff => {
-                self.output.put_byte(TYPE_SEQ | 24)?;
-                self.output.put_byte(len as u8)?;
+                self.put_byte(TYPE_SEQ | 24)?;
+                self.put_byte(len as u8)?;
             }
             0x0100...0xffff => {
-                self.output.put_byte(TYPE_SEQ | 25)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_SEQ | 25)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u16) as *mut u16 as *mut [u8; 2]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             0x00010000...0xffffffff => {
-                self.output.put_byte(TYPE_SEQ | 26)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_SEQ | 26)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u32) as *mut u32 as *mut [u8; 4]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             #[cfg(target_pointer_width = "64")]
             0x0000000100000000...0xffffffffffffffff | _ => {
-                self.output.put_byte(TYPE_SEQ | 27)?;
-                self.output.put_bytes(
+                self.put_byte(TYPE_SEQ | 27)?;
+                self.put_bytes(
                     unsafe { &mut *(&mut (len as u64) as *mut u64 as *mut [u8; 8]) },
-                    *WRONG_ENDIANNESS
+                    true
                 )?;
             }
             #[cfg(not(target_pointer_width = "64"))]

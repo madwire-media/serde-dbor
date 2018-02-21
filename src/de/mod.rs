@@ -10,6 +10,7 @@ mod read;
 
 use error::*;
 use self::read::*;
+use super::WRONG_ENDIANNESS;
 
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -105,13 +106,13 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
     }
 
     #[inline]
-    fn read<'a>(&'a mut self, bytes: usize) -> Result<Borrowed<'a, 'de>> {
-        self.input.read(bytes).ok_or(Error::Eof)
+    fn read<'a>(&'a mut self, bytes: usize, should_flip: bool) -> Result<Borrowed<'a, 'de>> {
+        self.input.read(bytes, *WRONG_ENDIANNESS && should_flip).ok_or(Error::Eof)
     }
 
     #[inline]
-    fn must_read<'a>(&'a mut self, bytes: usize) -> Result<Borrowed<'a, 'de>> {
-        let borrowed = self.read(bytes)?;
+    fn must_read<'a>(&'a mut self, bytes: usize, should_flip: bool) -> Result<Borrowed<'a, 'de>> {
+        let borrowed = self.read(bytes, *WRONG_ENDIANNESS && should_flip)?;
 
         if borrowed.len() != bytes {
             Err(Error::Eof)
@@ -125,10 +126,10 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
     //     self.input.peek(bytes).ok_or(Error::Eof)
     // }
 
-    // #[inline]
-    // fn consume(&mut self, bytes: usize) -> Result<usize> {
-    //     self.input.consume(bytes).ok_or(Error::Eof)
-    // }
+    #[inline]
+    fn consume(&mut self, bytes: usize) -> Result<usize> {
+        self.input.consume(bytes).ok_or(Error::Eof)
+    }
 
     #[inline]
     fn must_consume(&mut self, bytes: usize) -> Result<()> {
@@ -152,35 +153,15 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
             0...23 => Ok(value as usize),
             24 => Ok(self.next()? as usize),
             25 => Ok(
-                (self.next()? as usize) << 8 |
-                (self.next()? as usize)
+                unsafe { *(self.must_read(2, true)?.as_slice().as_ptr() as *const u16) as usize }
             ),
-            // 25 => Ok(unsafe {
-            //     *(self.must_read(2)?.as_slice().as_ptr() as *const u16) as usize
-            // }),
             26 => Ok(
-                (self.next()? as usize) << 24 |
-                (self.next()? as usize) << 16 |
-                (self.next()? as usize) << 8 |
-                (self.next()? as usize)
+                unsafe { *(self.must_read(4, true)?.as_slice().as_ptr() as *const u32) as usize }
             ),
             #[cfg(target_pointer_width = "64")]
-            27 => {
-                let num = (self.next()? as u64) << 56 |
-                (self.next()? as u64) << 48 |
-                (self.next()? as u64) << 40 |
-                (self.next()? as u64) << 32 |
-                (self.next()? as u64) << 24 |
-                (self.next()? as u64) << 16 |
-                (self.next()? as u64) << 8 |
-                (self.next()? as u64);
-
-                if num > usize::max_value() as u64 {
-                    Err(Error::UsizeOverflow)
-                } else {
-                    Ok(num as usize)
-                }
-            }
+            27 => Ok(
+                unsafe { *(self.must_read(8, true)?.as_slice().as_ptr() as *const u64) as usize }
+            ),
             #[cfg(not(target_pointer_width = "64"))]
             27 => Err(Error::UsizeOverflow),
             _ => Err(Error::UnexpectedValue(Type::Any, value)),
@@ -197,30 +178,18 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
             0...23 => visitor.visit_u8(value as u8),
             24 => visitor.visit_u8(self.next()? as u8),
             25 => visitor.visit_u16(
-                (self.next()? as u16) << 8 |
-                (self.next()? as u16)
+                unsafe { *(self.must_read(2, true)?.as_slice().as_ptr() as *const u16) }
             ),
             26 => visitor.visit_u32(
-                (self.next()? as u32) << 24 |
-                (self.next()? as u32) << 16 |
-                (self.next()? as u32) << 8 |
-                (self.next()? as u32)
+                unsafe { *(self.must_read(4, true)?.as_slice().as_ptr() as *const u32) }
             ),
             27 => visitor.visit_u64(
-                (self.next()? as u64) << 56 |
-                (self.next()? as u64) << 48 |
-                (self.next()? as u64) << 40 |
-                (self.next()? as u64) << 32 |
-                (self.next()? as u64) << 24 |
-                (self.next()? as u64) << 16 |
-                (self.next()? as u64) << 8 |
-                (self.next()? as u64)
+                unsafe { *(self.must_read(8, true)?.as_slice().as_ptr() as *const u64) }
             ),
             _ => Err(Error::UnexpectedValue(Type::Uint, value)),
         }
     }
 
-    // Note: << can change the sign bit, while >> can't
     #[inline]
     fn parse_int<V>(&mut self, visitor: V, value: u8) -> Result<V::Value>
     where
@@ -230,29 +199,17 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
             0...15 => visitor.visit_i8(value as i8),
             16...23 => visitor.visit_i8(value as i8 - 24),
             24 => visitor.visit_i8(
-                    // Reinterpret the u8 as an i8, through long, complex type punning
-                    *unsafe { &mut *(&mut self.next()? as *mut u8 as *mut i8) }
-                ),
+                unsafe { *(&mut self.next()? as *mut u8 as *mut i8) }
+            ),
             25 => visitor.visit_i16(
-                    (self.next()? as i16) << 8 |
-                    (self.next()? as i16)
-                ),
+                unsafe { *(self.must_read(2, true)?.as_slice().as_ptr() as *const i16) }
+            ),
             26 => visitor.visit_i32(
-                    (self.next()? as i32) << 24 |
-                    (self.next()? as i32) << 16 |
-                    (self.next()? as i32) << 8 |
-                    (self.next()? as i32)
-                ),
+                unsafe { *(self.must_read(4, true)?.as_slice().as_ptr() as *const i32) }
+            ),
             27 => visitor.visit_i64(
-                    (self.next()? as i64) << 56 |
-                    (self.next()? as i64) << 48 |
-                    (self.next()? as i64) << 40 |
-                    (self.next()? as i64) << 32 |
-                    (self.next()? as i64) << 24 |
-                    (self.next()? as i64) << 16 |
-                    (self.next()? as i64) << 8 |
-                    (self.next()? as i64)
-                ),
+                unsafe { *(self.must_read(8, true)?.as_slice().as_ptr() as *const i64) }
+            ),
             _ => Err(Error::UnexpectedValue(Type::Int, value)),
         }
     }
@@ -264,24 +221,10 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
     {
         match value {
             4 => visitor.visit_f32(
-                f32::from_bits(
-                    (self.next()? as u32) << 24 |
-                    (self.next()? as u32) << 16 |
-                    (self.next()? as u32) << 8 |
-                    (self.next()? as u32)
-                )
+                unsafe { *(self.must_read(4, true)?.as_slice().as_ptr() as *const f32) }
             ),
             5 => visitor.visit_f64(
-                f64::from_bits(
-                    (self.next()? as u64) << 56 |
-                    (self.next()? as u64) << 48 |
-                    (self.next()? as u64) << 40 |
-                    (self.next()? as u64) << 32 |
-                    (self.next()? as u64) << 24 |
-                    (self.next()? as u64) << 16 |
-                    (self.next()? as u64) << 8 |
-                    (self.next()? as u64)
-                )
+                unsafe { *(self.must_read(8, true)?.as_slice().as_ptr() as *const f64) }
             ),
             _ => Err(Error::UnexpectedValue(Type::Misc, value)),
         }
@@ -355,7 +298,7 @@ impl<'de, R: Read<'de>> Deserializer<'de, R> {
                 while bytes_to_parse > 0 {
                     let bytes_to_read = cmp::min(self.input.max_instant_read(), bytes_to_parse);
 
-                    bytes_to_parse -= self.read(bytes_to_read)?.as_slice().len();
+                    bytes_to_parse -= self.consume(bytes_to_read)?;
                 }
             }
             Type::Map => {
@@ -445,24 +388,10 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                 2 => visitor.visit_unit(),
                 3 => visitor.visit_none(),
                 4 => visitor.visit_f32(
-                    f32::from_bits(
-                        (self.next()? as u32) << 24 |
-                        (self.next()? as u32) << 16 |
-                        (self.next()? as u32) << 8 |
-                        (self.next()? as u32)
-                    )
+                    unsafe { *(self.must_read(4, true)?.as_slice().as_ptr() as *const f32) }
                 ),
                 5 => visitor.visit_f64(
-                    f64::from_bits(
-                        (self.next()? as u64) << 56 |
-                        (self.next()? as u64) << 48 |
-                        (self.next()? as u64) << 40 |
-                        (self.next()? as u64) << 32 |
-                        (self.next()? as u64) << 24 |
-                        (self.next()? as u64) << 16 |
-                        (self.next()? as u64) << 8 |
-                        (self.next()? as u64)
-                    )
+                    unsafe { *(self.must_read(8, true)?.as_slice().as_ptr() as *const f64) }
                 ),
                 _ => Err(Error::UnexpectedValue(Type::Misc, val(byte))),
             }
@@ -484,17 +413,18 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                     while bytes_to_parse > 0 {
                         let bytes_to_read = cmp::min(self.input.max_instant_read(), bytes_to_parse);
 
-                        let bytes = self.read(bytes_to_read)?.as_slice();
+                        let bytes = self.read(bytes_to_read, false)?;
 
                         bytes_to_parse -= bytes.len();
-                        buf.extend_from_slice(bytes);
+                        buf.extend_from_slice(bytes.as_slice());
                     }
 
                     visitor.visit_byte_buf(buf)
                 } else {
-                    match self.read(len)? {
+                    match self.read(len, false)? {
                         Borrowed::Transient(bytes) => visitor.visit_bytes(bytes),
                         Borrowed::Permanent(bytes) => visitor.visit_borrowed_bytes(bytes),
+                        Borrowed::Copied(bytes) => visitor.visit_byte_buf(bytes),
                     }
                 }
             }
@@ -566,12 +496,12 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                     match val(byte) {
                         value @ 0...23 => value as u32,
                         24 => self.next()? as u32,
-                        25 => (self.next()? as u32) << 8 |
-                            (self.next()? as u32),
-                        26 => (self.next()? as u32) << 24 |
-                            (self.next()? as u32) << 16 |
-                            (self.next()? as u32) << 8 |
-                            (self.next()? as u32),
+                        25 => unsafe {
+                            *(self.must_read(2, true)?.as_slice().as_ptr() as *const u16) as u32
+                        },
+                        26 => unsafe {
+                            *(self.must_read(4, true)?.as_slice().as_ptr() as *const u32)
+                        },
                         27 => return Err(Error::UnexpectedValue(Type::Char, 27)),
                         value => return Err(Error::UnexpectedValue(Type::Char, value)), // Unexpected value
                     }
@@ -580,7 +510,7 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
             Type::Bytes => {
                 match val(byte) {
                     bytes @ 1...4 => {
-                        match String::from_utf8(self.read(bytes as usize)?.into_vec()) {
+                        match String::from_utf8(self.read(bytes as usize, false)?.into_vec()) {
                             Ok(s) => {
                                 let mut chars = s.chars();
 
@@ -625,17 +555,18 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                     while bytes_to_parse > 0 {
                         let bytes_to_read = cmp::min(self.input.max_instant_read(), bytes_to_parse);
 
-                        let bytes = self.read(bytes_to_read)?.as_slice();
+                        let bytes = self.read(bytes_to_read, false)?;
 
                         bytes_to_parse -= bytes.len();
-                        buf.extend_from_slice(bytes);
+                        buf.extend_from_slice(bytes.as_slice());
                     }
 
                     visitor.visit_byte_buf(buf)
                 } else {
-                    match self.read(len)? {
+                    match self.read(len, false)? {
                         Borrowed::Transient(bytes) => visitor.visit_bytes(bytes),
                         Borrowed::Permanent(bytes) => visitor.visit_borrowed_bytes(bytes),
+                        Borrowed::Copied(bytes) => visitor.visit_byte_buf(bytes),
                     }
                 }
             }
@@ -799,18 +730,14 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                     value @ 0...23 => visitor.visit_enum((value as u32).into_deserializer()),
                     24 => visitor.visit_enum((self.next()? as u32).into_deserializer()),
                     25 => visitor.visit_enum(
-                        (
-                            (self.next()? as u32) << 8 |
-                            (self.next()? as u32)
-                        ).into_deserializer()
+                        unsafe {
+                            *(self.must_read(2, true)?.as_slice().as_ptr() as *const u16) as u32
+                        }.into_deserializer()
                     ),
                     26 => visitor.visit_enum(
-                        (
-                            (self.next()? as u32) << 24 |
-                            (self.next()? as u32) << 16 |
-                            (self.next()? as u32) << 8 |
-                            (self.next()? as u32)
-                        ).into_deserializer()
+                        unsafe {
+                            *(self.must_read(4, true)?.as_slice().as_ptr() as *const u32)
+                        }.into_deserializer()
                     ),
                     27 => Err(Error::UsizeOverflow),
                     value => Err(Error::UnexpectedValue(Type::Uint, value)),
@@ -833,28 +760,28 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                 value @ 0...23 => visitor.visit_u32(value as u32),
                 24 => visitor.visit_u32(self.next()? as u32),
                 25 => visitor.visit_u32(
-                        (self.next()? as u32) << 8 |
-                        (self.next()? as u32)
+                    unsafe {
+                        *(self.must_read(2, true)?.as_slice().as_ptr() as *const u16) as u32
+                    }
                 ),
                 26 => visitor.visit_u32(
-                        (self.next()? as u32) << 24 |
-                        (self.next()? as u32) << 16 |
-                        (self.next()? as u32) << 8 |
-                        (self.next()? as u32)
+                    unsafe {
+                        *(self.must_read(4, true)?.as_slice().as_ptr() as *const u32)
+                    }
                 ),
                 27 => {
                     let len = match self.next()? {
-                        value @ 0...251 => value as usize,
-                        252 => self.next()? as usize,
-                        253 => (
-                            (self.next()? as usize) << 8 |
-                            (self.next()? as usize)
+                        value @ 0...247 => value as usize,
+                        248 => self.next()? as usize,
+                        249 => (
+                            unsafe {
+                                *(self.must_read(2, true)?.as_slice().as_ptr() as *const u16)
+                            } as usize
                         ),
-                        254 => (
-                            (self.next()? as usize) << 24 |
-                            (self.next()? as usize) << 16 |
-                            (self.next()? as usize) << 8 |
-                            (self.next()? as usize)
+                        250 => (
+                            unsafe {
+                                *(self.must_read(4, true)?.as_slice().as_ptr() as *const u32)
+                            } as usize
                         ),
                         value => return Err(Error::UnexpectedValue(Type::Variant, value)),
                     };
@@ -868,17 +795,18 @@ impl<'de, 'a, R: Read<'de>> SerdeDeserializer<'de> for &'a mut Deserializer<'de,
                         while bytes_to_parse > 0 {
                             let bytes_to_read = cmp::min(self.input.max_instant_read(), bytes_to_parse);
 
-                            let bytes = self.read(bytes_to_read)?.as_slice();
+                            let bytes = self.read(bytes_to_read, false)?;
 
                             bytes_to_parse -= bytes.len();
-                            buf.extend_from_slice(bytes);
+                            buf.extend_from_slice(bytes.as_slice());
                         }
 
                         visitor.visit_byte_buf(buf)
                     } else {
-                        match self.read(len)? {
+                        match self.read(len, false)? {
                             Borrowed::Transient(bytes) => visitor.visit_bytes(bytes),
                             Borrowed::Permanent(bytes) => visitor.visit_borrowed_bytes(bytes),
+                            Borrowed::Copied(bytes) => visitor.visit_byte_buf(bytes),
                         }
                     }
                 }
