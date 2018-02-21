@@ -2,6 +2,46 @@
 
 DBOR is a serialization format based on CBOR, designed for Rust, and optimized for speed and file size. I created this because at one point I had to deal with a large 23MB CBOR file containing a huge tree structure, and it was taking 6 seconds to load and 60 seconds to save. However, now with DBOR, both the save and load times went down to 0.3 seconds, and the file size went down to 19MB. (that's a difference of 1:20 in read speed and 1:200 in write speed!)
 
+
+# Example Usage
+(derived from [serde_json's tutorial](https://github.com/serde-rs/json#parsing-json-as-strongly-typed-data-structures))
+
+### `Cargo.toml`
+```toml
+[dependencies]
+serde = "*"
+serde_derive = "*"
+serde_dbor = "*"
+```
+
+### `main.rs`
+```rust
+extern crate serde;
+extern crate serde_dbor;
+
+#[macro_use]
+extern crate serde_derive;
+
+use serde_dbor::Error;
+
+#[derive(Serialize, Deserialize)]
+struct Person {
+    name: String,
+    age: u8,
+    phones: Vec<String>
+}
+
+fn example<'a>(data: &'a [u8]) => Result<(), Error> {
+    // Parse the data into a Person object.
+    let p: Person = serde_dbor::from_slice(data)?;
+
+    // Do things just like with any other Rust data structure.
+    println!("Please call {} at the number {}", p.name, p.phones[0]);
+
+    Ok(())
+}
+```
+
 ## Spec
 DBOR, just like CBOR, is composed of instruction bytes and additional content bytes. However, in DBOR, every item needs to be described before its content, meaning that indefinite-length arrays, strings, or maps are not allowed because they would require a termination byte at the end of the item. An instruction byte is split up into two sections of 3 bits and 5 bits, respectively. The first 3 bits define the type of the item, and the last 5 are a parameter for that item, which in some cases can be the value of the item itself. For example, an unsigned integer with a value of 21 would be stored as `0x15`, or `0b000 10101`, because type 0 (`0b000`) is a uint and the byte has enough space left over to encode the number 21 (`0b10101`).
 
