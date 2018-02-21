@@ -1,5 +1,5 @@
 [package]
-name = "dbor"
+name = "serde_dbor"
 version = "0.1.0"
 authors = ["Dakota Sullivan <dakota.sullivan@madwiremedia.com>"]
 
