@@ -1,0 +1,8 @@
+[package]
+name = "dbor"
+version = "0.1.0"
+authors = ["Dakota Sullivan <dakota.sullivan@madwiremedia.com>"]
+
+[dependencies]
+serde = "*"
+lazy_static = "^1.0.0"
