@@ -5,7 +5,7 @@ DBOR is a serialization format based on CBOR, designed for Rust, and optimized f
 ## Spec
 DBOR, just like CBOR, is composed of instruction bytes and additional content bytes. However, in DBOR, every item needs to be described before its content, meaning that indefinite-length arrays, strings, or maps are not allowed because they would require a termination byte at the end of the item. An instruction byte is split up into two sections of 3 bits and 5 bits, respectively. The first 3 bits define the type of the item, and the last 5 are a parameter for that item, which in some cases can be the value of the item itself. For example, an unsigned integer with a value of 21 would be stored as `0x15`, or `0b000 10101`, because type 0 (`0b000`) is a uint and the byte has enough space left over to encode the number 21 (`0b10101`).
 
-When an instruction byte indicates that the parameter is of a certain size `n`, the next `n` bytes will be used for that parameter, and then afterwards will be the content of the item described by the instruction byte.
+When an instruction byte indicates that the parameter is of a certain size `n`, the next `n` bytes will be used for that parameter, and then afterwards will be the content of the item described by the instruction byte. For example, a `u16` parameter takes up the two bytes immediately after the instruction byte.
 
 ### Instruction Bytes
 
