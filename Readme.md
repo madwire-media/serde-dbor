@@ -25,7 +25,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>25</code> - <code>u16</code></li>
         <li><code>26</code> - <code>u32</code></li>
         <li><code>27</code> - <code>u64</code></li>
-        <li><code>28-31</code> - *reserved*</li>
+        <li><code>28-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
@@ -40,7 +40,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>25</code> - <code>i16</code></li>
         <li><code>26</code> - <code>i32</code></li>
         <li><code>27</code> - <code>i64</code></li>
-        <li><code>28-31</code> - *reserved*</li>
+        <li><code>28-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
@@ -55,7 +55,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>3</code> - <code>None</code></li>
         <li><code>4</code> - <code>f32</code></li>
         <li><code>5</code> - <code>f64</code></li>
-        <li><code>6-31</code> - *reserved*</li>
+        <li><code>6-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
@@ -69,7 +69,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>25</code> - variant id as <code>u16</code></li>
         <li><code>26</code> - variant id as <code>u32</code></li>
         <li><code>27</code> - named variant (see below)</li>
-        <li><code>28-31</code> - *reserved*</li>
+        <li><code>28-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
@@ -83,7 +83,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>25</code> - length as <code>u16</code></li>
         <li><code>26</code> - length as <code>u32</code></li>
         <li><code>27</code> - length as <code>u64</code> (only on 64-bit machines)</li>
-        <li><code>28-31</code> - *reserved*</li>
+        <li><code>28-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
@@ -97,7 +97,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>25</code> - length as <code>u16</code></li>
         <li><code>26</code> - length as <code>u32</code></li>
         <li><code>27</code> - length as <code>u64</code> (only on 64-bit machines)</li>
-        <li><code>28-31</code> - *reserved*</li>
+        <li><code>28-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
@@ -117,19 +117,19 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
   </tr>
   <tr>
     <td><code>0b111</code> (<code>7</code>)</td>
-    <td>*reserved*</td>
+    <td><i>reserved</i></td>
     <td>
       <ul>
-        <li><code>0-31</code> - *reserved*</li>
+        <li><code>0-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
 </table>
 
 #### Named Variant Byte
-* <code>0-247</code> - name length of <code>0-247</code>
-* <code>248</code> - name length as <code>u8</code>
-* <code>249</code> - name length as <code>u16</code>
-* <code>250</code> - name length as <code>u32</code>
-* <code>251</code> - name length as <code>u64</code> (only on 64-bit machines)
-* <code>252-255</code> - *reserved*
+* `0-247` - name length of `0-247`
+* `248` - name length as `u8`
+* `249` - name length as `u16`
+* `250` - name length as `u32`
+* `251` - name length as `u64` (only on 64-bit machines)
+* `252-255` - *reserved*
