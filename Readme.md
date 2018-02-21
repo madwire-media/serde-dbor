@@ -175,3 +175,42 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
 * `250` - name length as `u32`
 * `251` - name length as `u64` (only on 64-bit machines)
 * `252-255` - *reserved*
+
+## Example Data
+### Rust Code
+```rust
+struct Data {
+  some_text: String,
+  a_byte: u8,
+  some_important_numbers: Vec<u16>,
+}
+
+let data = Data {
+  some_text: "Hello world!",
+  a_small_byte: 0x04,
+  a_byte: 0x27,
+  some_important_numbers: vec![
+    0x1234,
+    0x6789,
+    0xabcd,
+  ]
+}
+```
+
+### Annotated Hex Dump of DBOR
+```
+84                      # Seq(4)
+  ac                      # Bytes(12)
+    48 65 6c 6c 64 20...
+    77 6f 72 6c 64 21       # "Hello world!"
+  04                      # uint(4)
+  18                    # u8
+    27                    # 0x27
+  83                    # Seq(3)
+    19                    # u16
+      34 12                 # 0x1234
+    19                    # u16
+      89 67                 # 0x6789
+    19                    # u16
+      cd ab                 # 0xabcd
+```
