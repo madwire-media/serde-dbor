@@ -153,7 +153,7 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
         <li><code>25</code> - length as <code>u16</code></li>
         <li><code>26</code> - length as <code>u32</code></li>
         <li><code>27</code> - length as <code>u64</code> (only on 64-bit machines)</li>
-        <li><code>28-31</code></li>
+        <li><code>28-31</code> - <i>reserved</i></li>
       </ul>
     </td>
   </tr>
