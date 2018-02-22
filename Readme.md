@@ -202,7 +202,7 @@ let data = Data {
 ```
 84                    # Seq(4)
   ac                    # Bytes(12)
-    48 65 6c 6c 64 20...
+    48 65 6c 6c 6f 20...
     77 6f 72 6c 64 21       # "Hello world!"
   04                      # uint(4)
   18                    # u8
