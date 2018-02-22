@@ -182,21 +182,21 @@ Note: serialization using named variants isn't currently implemented, but deseri
 ### Rust Code
 ```rust
 struct Data {
-  some_text: String,
-  a_small_number: u64,
-  a_byte: u8,
-  some_important_numbers: Vec<u16>,
+    some_text: String,
+    a_small_number: u64,
+    a_byte: u8,
+    some_important_numbers: Vec<u16>,
 }
 
 let data = Data {
-  some_text: "Hello world!",
-  a_small_number: 0x04,
-  a_byte: 0x27,
-  some_important_numbers: vec![
-    0x1234,
-    0x6789,
-    0xabcd,
-  ]
+    some_text: "Hello world!",
+    a_small_number: 0x04,
+    a_byte: 0x27,
+    some_important_numbers: vec![
+        0x1234,
+        0x6789,
+        0xabcd,
+    ]
 }
 ```
 
