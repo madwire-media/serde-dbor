@@ -176,6 +176,8 @@ When an instruction byte indicates that the parameter is of a certain size `n`, 
 * `251` - name length as `u64` (only on 64-bit machines)
 * `252-255` - *reserved*
 
+Note: serialization using named variants isn't currently implemented, but deserialization is.
+
 ## Example Data
 ### Rust Code
 ```rust
