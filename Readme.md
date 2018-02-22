@@ -2,7 +2,7 @@
 
 DBOR is a serialization format based on CBOR, designed for Rust, and optimized for speed and file size. It uses buffered reading and writing systems when interacting with io streams for maximum efficiency.
 
-I created this because I needed to save and load a large 23MB CBOR file containing a huge tree structure, and it was taking 6 seconds to load and 60 seconds to save. However, now with DBOR, both the save and load times went down to 0.3 seconds, and the file size went down to 19MB. (that's a difference of 1:20 in read speed and 1:200 in write speed!)
+I created this because I needed to save and load a large 23MB CBOR file containing a huge tree structure, and it was taking 6 seconds to load and 60 seconds to save. But after building and implementing DBOR, both the save and load times went down to 0.3 seconds, and the file size went down to 19MB. (that's a difference of 1:20 in read speed and 1:200 in write speed!)
 
 
 # Example Usage
