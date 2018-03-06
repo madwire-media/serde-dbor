@@ -1,12 +1,12 @@
 [package]
 name = "serde_dbor"
 description = "A quick and concise serialization language designed for Rust"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Dakota Sullivan <dakota.sullivan@madwiremedia.com>"]
 repository = "https://github.com/madwire-media/serde-dbor"
 readme = "Readme.md"
 license = "MIT"
 
 [dependencies]
-serde = "*"
+serde = "^1.0.0"
 lazy_static = "^1.0.0"
