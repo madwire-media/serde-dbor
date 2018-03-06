@@ -2,6 +2,9 @@
 name = "serde_dbor"
 version = "0.1.0"
 authors = ["Dakota Sullivan <dakota.sullivan@madwiremedia.com>"]
+repository = "https://github.com/madwire-media/serde-dbor"
+readme = "Readme.md"
+license = "MIT"
 
 [dependencies]
 serde = "*"
