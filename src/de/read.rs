@@ -65,7 +65,7 @@ impl<T: IoRead> BufferedReader<T> {
     pub fn new(reader: T) -> Self {
         Self {
             internal: reader,
-            buffer: [0; 1024],
+            buffer: [0; MAX_BUF_LEN],
             buf_len: 0,
             index: 0,
             finished: false,
@@ -175,12 +175,13 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
                 self.buffer = new_buffer;
 
                 let index = self.index;
+                let buf_len = self.buf_len;
 
                 self.buf_len -= index;
 
                 // Try reading new bytes into the buffer
                 loop {
-                    match self.internal.read(&mut self.buffer[MAX_BUF_LEN - index..]) {
+                    match self.internal.read(&mut self.buffer[buf_len - index..]) {
                         Ok(bytes_read) => {
                             if bytes_read == 0 {
                                 self.finished = true;
@@ -273,13 +274,14 @@ impl<'de, T: IoRead> Read<'de> for BufferedReader<T> {
                 self.buffer = new_buffer;
 
                 let index = self.index;
+                let buf_len = self.buf_len;
 
                 self.buf_len -= index;
                 self.index = 0;
 
                 // Try reading new bytes into the buffer
                 loop {
-                    match self.internal.read(&mut self.buffer[MAX_BUF_LEN - index..]) {
+                    match self.internal.read(&mut self.buffer[buf_len - index..]) {
                         Ok(bytes_read) => {
                             if bytes_read == 0 {
                                 self.finished = true;
